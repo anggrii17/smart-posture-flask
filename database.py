@@ -16,6 +16,10 @@ print("DB   :", DB_NAME)
 print("==========================")
 
 
+# =====================================================
+# CONNECTION
+# =====================================================
+
 def get_connection():
 
     try:
@@ -27,7 +31,10 @@ def get_connection():
             password=DB_PASSWORD,
             database=DB_NAME,
             cursorclass=pymysql.cursors.DictCursor,
-            autocommit=True
+            autocommit=True,
+            connect_timeout=5,
+            read_timeout=5,
+            write_timeout=5
         )
 
         print("✅ MYSQL CONNECTED")
@@ -44,16 +51,19 @@ def get_connection():
 
 
 # =====================================================
-# UPDATE REALTIME CURRENT POSTURE
+# UPDATE DATA REALTIME CURRENT POSTURE
 # =====================================================
 
 def update_current(pitch, status):
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
+    conn = None
+    cursor = None
 
     try:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
 
         cursor.execute("""
             UPDATE current_posture
@@ -79,24 +89,30 @@ def update_current(pitch, status):
 
     finally:
 
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
 
 
 # =====================================================
-# INSERT LOG
-# Tidak Ergonomis = langsung simpan
-# Ergonomis = interval 5 menit
+# SIMPAN LOG
+# Tidak Ergonomis  = langsung simpan
+# Ergonomis        = setiap 5 menit
 # =====================================================
 
 def insert_log(pitch, status):
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
+    conn = None
+    cursor = None
 
     try:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
 
         save_log = False
 
@@ -158,7 +174,7 @@ def insert_log(pitch, status):
                     NOW()
                 )
 
-            """,(
+            """, (
                 pitch,
                 status
             ))
@@ -166,9 +182,10 @@ def insert_log(pitch, status):
 
             print("✅ LOG INSERTED")
 
+
         else:
 
-            print("ℹ️ LOG SKIPPED (interval 5 menit)")
+            print("ℹ️ LOG SKIPPED")
 
 
 
@@ -182,8 +199,11 @@ def insert_log(pitch, status):
 
     finally:
 
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
 
 
@@ -193,20 +213,28 @@ def insert_log(pitch, status):
 
 def save_prediction(pitch, status):
 
-
     print("SAVE PREDICTION START")
 
 
-    update_current(
-        pitch,
-        status
-    )
+    try:
+
+        update_current(
+            pitch,
+            status
+        )
 
 
-    insert_log(
-        pitch,
-        status
-    )
+        insert_log(
+            pitch,
+            status
+        )
 
 
-    print("SAVE PREDICTION DONE")
+        print("SAVE PREDICTION DONE")
+
+
+    except Exception as e:
+
+        print("❌ SAVE PREDICTION ERROR :", e)
+
+        raise e
