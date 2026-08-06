@@ -17,6 +17,7 @@ print("DB   :", DB_NAME)
 print("==========================")
 
 
+
 # =====================================================
 # CONNECTION
 # =====================================================
@@ -38,9 +39,12 @@ def get_connection():
             write_timeout=5
         )
 
+
         print("✅ MYSQL CONNECTED")
 
+
         return conn
+
 
 
     except Exception as e:
@@ -51,14 +55,17 @@ def get_connection():
 
 
 
+
 # =====================================================
-# UPDATE DATA REALTIME CURRENT POSTURE
+# UPDATE CURRENT POSTURE
+# Realtime setiap data masuk
 # =====================================================
 
 def update_current(pitch, status):
 
     conn = None
     cursor = None
+
 
     try:
 
@@ -68,7 +75,7 @@ def update_current(pitch, status):
 
         cursor.execute("""
             UPDATE current_posture
-            SET 
+            SET
                 pitch=%s,
                 status=%s,
                 timestamp=CONVERT_TZ(
@@ -86,11 +93,13 @@ def update_current(pitch, status):
         print("✅ CURRENT UPDATED")
 
 
+
     except Exception as e:
 
         print("❌ UPDATE CURRENT ERROR :", e)
 
         raise e
+
 
 
     finally:
@@ -103,14 +112,19 @@ def update_current(pitch, status):
 
 
 
+
+
 # =====================================================
-# SIMPAN LOG POSTURE
+# INSERT POSTURE LOG
 #
-# Tidak Ergonomis :
-# langsung simpan
+# Aturan:
 #
-# Ergonomis :
-# simpan setiap 5 menit
+# 1. Status berubah
+#    langsung simpan
+#
+# 2. Status sama
+#    simpan setiap 5 menit
+#
 # =====================================================
 
 def insert_log(pitch, status):
@@ -125,50 +139,77 @@ def insert_log(pitch, status):
         cursor = conn.cursor()
 
 
+
         save_log = False
 
 
 
-        # Tidak ergonomis langsung masuk log
-        if status == "Tidak Ergonomis":
+        # Ambil data terakhir
+
+        cursor.execute("""
+            SELECT
+                status,
+                timestamp
+            FROM posture_logs
+            ORDER BY id DESC
+            LIMIT 1
+        """)
+
+
+        last_log = cursor.fetchone()
+
+
+
+
+        # Jika database masih kosong
+
+        if last_log is None:
 
             save_log = True
 
 
 
-        # Ergonomis cek interval
-        elif status == "Ergonomis":
+
+        else:
 
 
-            cursor.execute("""
-                SELECT timestamp
-                FROM posture_logs
-                ORDER BY id DESC
-                LIMIT 1
-            """)
-
-
-            last_log = cursor.fetchone()
+            last_status = last_log["status"]
+            last_time = last_log["timestamp"]
 
 
 
-            if last_log is None:
+            time_diff = datetime.now() - last_time
+
+
+
+
+            # =====================================
+            # STATUS BERUBAH
+            # =====================================
+
+            if status != last_status:
 
                 save_log = True
 
 
-            else:
-
-                last_time = last_log["timestamp"]
 
 
-                # cek selisih 5 menit
-                if datetime.now() - last_time >= timedelta(minutes=5):
+            # =====================================
+            # STATUS TETAP
+            # INTERVAL 5 MENIT
+            # =====================================
 
-                    save_log = True
+            elif time_diff >= timedelta(minutes=5):
+
+                save_log = True
 
 
 
+
+
+        # =====================================
+        # SIMPAN LOG
+        # =====================================
 
         if save_log:
 
@@ -198,12 +239,16 @@ def insert_log(pitch, status):
             ))
 
 
+
             print("✅ LOG INSERTED")
+
 
 
         else:
 
-            print("ℹ️ LOG SKIPPED (BELUM 5 MENIT)")
+            print("ℹ️ LOG SKIPPED")
+
+
 
 
 
@@ -212,6 +257,7 @@ def insert_log(pitch, status):
         print("❌ INSERT LOG ERROR :", e)
 
         raise e
+
 
 
 
@@ -225,37 +271,47 @@ def insert_log(pitch, status):
 
 
 
+
+
 # =====================================================
-# FUNGSI UTAMA
-# DIPANGGIL FLASK
+# FUNGSI UTAMA FLASK
 # =====================================================
 
 def save_prediction(pitch, status):
 
+
     print("SAVE PREDICTION START")
+
 
 
     try:
 
 
-        # update realtime
+        # Update realtime
+
         update_current(
             pitch,
             status
         )
 
 
-        # simpan history
+
+        # Simpan history
+
         insert_log(
             pitch,
             status
         )
 
 
+
         print("SAVE PREDICTION DONE")
 
 
+
+
     except Exception as e:
+
 
         print("❌ SAVE PREDICTION ERROR :", e)
 
