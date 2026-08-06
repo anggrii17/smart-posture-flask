@@ -163,13 +163,13 @@ def predict():
 
         # Simpan database
 
-        save_prediction(
+        #save_prediction(
 
-            pitch,
-            status
+         #   pitch,
+          #  status
 
-        )
-
+        #)
+        print("DATABASE DILEWATI")
 
         print("DATABASE OK")
 
