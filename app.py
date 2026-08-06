@@ -4,6 +4,7 @@
 # =====================================================
 
 from flask import Flask, request, jsonify
+from datetime import timezone
 import joblib
 import pandas as pd
 import pymysql
@@ -274,47 +275,41 @@ def current():
 
     try:
 
-
         conn = get_connection()
         cursor = conn.cursor()
-
-
 
         cursor.execute("""
             SELECT *
             FROM current_posture
-            WHERE id=1
+            WHERE id = 1
         """)
 
-
-
         data = cursor.fetchone()
-
-
 
         cursor.close()
         conn.close()
 
+        if data:
 
+            dt = data["timestamp"]
+
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+
+            data["timestamp"] = dt.isoformat()
+            data["timestamp_unix"] = int(dt.timestamp())
 
         return jsonify({
-
-            "success":True,
-            "data":data
-
+            "success": True,
+            "data": data
         })
-
-
 
     except Exception as e:
 
-
         return jsonify({
-
-            "success":False,
-            "error":str(e)
-
-        }),500
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
 
