@@ -6,7 +6,7 @@
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
-# from database import save_prediction
+from database import save_prediction
 
 
 # =====================================================
