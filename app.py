@@ -1,12 +1,15 @@
 # =====================================================
 # SMART POSTURE MONITORING SYSTEM
-# Backend Flask + Random Forest
+# Backend Flask + Random Forest + Flutter API
 # =====================================================
 
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
+import pymysql
+
 from database import save_prediction
+from config import *
 
 
 # =====================================================
@@ -14,6 +17,25 @@ from database import save_prediction
 # =====================================================
 
 app = Flask(__name__)
+
+
+
+# =====================================================
+# CONNECTION DATABASE
+# Digunakan untuk Flutter
+# =====================================================
+
+def get_connection():
+
+    return pymysql.connect(
+        host=DB_HOST,
+        port=int(DB_PORT),
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
 
 
 # =====================================================
@@ -33,7 +55,10 @@ try:
 except Exception as e:
 
     print("GAGAL LOAD MODEL :", e)
+
     model = None
+
+
 
 
 
@@ -45,14 +70,18 @@ except Exception as e:
 def home():
 
     return jsonify({
+
         "message": "Smart Posture Monitoring API",
         "status": "Running"
+
     })
 
 
 
+
+
 # =====================================================
-# TEST PREDIKSI
+# TEST RANDOM FOREST
 # =====================================================
 
 @app.route("/test", methods=["GET"])
@@ -64,7 +93,9 @@ def test():
 
 
         input_data = pd.DataFrame({
-            "pitch": [pitch]
+
+            "pitch":[pitch]
+
         })
 
 
@@ -88,9 +119,8 @@ def test():
         })
 
 
-    except Exception as e:
 
-        print("ERROR TEST :", e)
+    except Exception as e:
 
         return jsonify({
 
@@ -98,6 +128,7 @@ def test():
             "error": str(e)
 
         }),500
+
 
 
 
@@ -111,28 +142,34 @@ def predict():
 
     try:
 
+
         print("==============================")
         print("REQUEST MASUK")
+
 
 
         data = request.get_json()
 
 
+
         print("DATA :", data)
+
 
 
         if data is None:
 
             return jsonify({
 
-                "success": False,
-                "error": "JSON tidak ditemukan"
+                "success":False,
+                "error":"JSON tidak ditemukan"
 
             }),400
 
 
 
+
         pitch = float(data["pitch"])
+
 
 
         print("PITCH :", pitch)
@@ -141,15 +178,18 @@ def predict():
 
         input_data = pd.DataFrame({
 
-            "pitch": [pitch]
+            "pitch":[pitch]
 
         })
+
 
 
         print("SEBELUM RANDOM FOREST")
 
 
+
         pred = model.predict(input_data)[0]
+
 
 
         print("HASIL RF :", pred)
@@ -165,7 +205,14 @@ def predict():
         )
 
 
+
         print("STATUS :", status)
+
+
+
+
+
+        # SIMPAN DATABASE
 
         try:
 
@@ -174,24 +221,27 @@ def predict():
                 status
             )
 
+
             print("DATABASE BERHASIL")
+
+
 
         except Exception as e:
 
             print("DATABASE GAGAL :", e)
 
-        except Exception as db_error:
 
-            print("DATABASE ERROR :", db_error)
+
 
         return jsonify({
 
-            "success": True,
-            "pitch": pitch,
-            "prediction": int(pred),
-            "status": status
+            "success":True,
+            "pitch":pitch,
+            "prediction":int(pred),
+            "status":status
 
         })
+
 
 
 
@@ -205,21 +255,138 @@ def predict():
 
         return jsonify({
 
-            "success": False,
-            "error": str(e)
+            "success":False,
+            "error":str(e)
 
         }),500
 
 
 
 
+
 # =====================================================
-# RUN
+# API UNTUK FLUTTER
+# CURRENT POSTURE
+# =====================================================
+
+@app.route("/current", methods=["GET"])
+def current():
+
+    try:
+
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+
+
+        cursor.execute("""
+            SELECT *
+            FROM current_posture
+            WHERE id=1
+        """)
+
+
+
+        data = cursor.fetchone()
+
+
+
+        cursor.close()
+        conn.close()
+
+
+
+        return jsonify({
+
+            "success":True,
+            "data":data
+
+        })
+
+
+
+    except Exception as e:
+
+
+        return jsonify({
+
+            "success":False,
+            "error":str(e)
+
+        }),500
+
+
+
+
+
+# =====================================================
+# API UNTUK FLUTTER
+# POSTURE LOGS
+# =====================================================
+
+@app.route("/logs", methods=["GET"])
+def logs():
+
+    try:
+
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+
+
+        cursor.execute("""
+            SELECT *
+            FROM posture_logs
+            ORDER BY id DESC
+            LIMIT 50
+        """)
+
+
+
+        data = cursor.fetchall()
+
+
+
+        cursor.close()
+        conn.close()
+
+
+
+        return jsonify({
+
+            "success":True,
+            "data":data
+
+        })
+
+
+
+    except Exception as e:
+
+
+        return jsonify({
+
+            "success":False,
+            "error":str(e)
+
+        }),500
+
+
+
+
+
+# =====================================================
+# RUN SERVER
 # =====================================================
 
 if __name__ == "__main__":
 
+
     app.run(
+
         host="0.0.0.0",
         port=5000
+
     )
