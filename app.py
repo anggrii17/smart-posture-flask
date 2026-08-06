@@ -166,12 +166,13 @@ def predict():
 
 
         print("STATUS :", status)
+        
+        save_prediction(
+            pitch,
+            status
+        )
 
-
-
-        # Database sementara dilewati
-        print("DATABASE DILEWATI")
-
+        print("DATABASE OK")
 
 
         return jsonify({
