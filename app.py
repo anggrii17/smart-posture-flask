@@ -168,12 +168,17 @@ def predict():
         print("STATUS :", status)
 
         try:
+
             save_prediction(
                 pitch,
                 status
             )
 
-            print("DATABASE OK")
+            print("DATABASE BERHASIL")
+
+        except Exception as e:
+
+            print("DATABASE GAGAL :", e)
 
         except Exception as db_error:
 

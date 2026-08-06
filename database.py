@@ -8,6 +8,7 @@ from config import *
 
 
 print("==========================")
+print("DATABASE.PY TERBACA")
 print("DATABASE CONFIG")
 print("HOST :", DB_HOST)
 print("PORT :", DB_PORT)
