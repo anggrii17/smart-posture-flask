@@ -68,9 +68,14 @@ def update_current(pitch, status):
 
         cursor.execute("""
             UPDATE current_posture
-            SET pitch=%s,
+            SET 
+                pitch=%s,
                 status=%s,
-                timestamp=CONVERT_TZ(NOW(), '+00:00', '+07:00')
+                timestamp=CONVERT_TZ(
+                    NOW(),
+                    '+00:00',
+                    '+07:00'
+                )
             WHERE id=1
         """, (
             pitch,
@@ -99,15 +104,20 @@ def update_current(pitch, status):
 
 
 # =====================================================
-# SIMPAN LOG
-# Tidak Ergonomis  = langsung simpan
-# Ergonomis        = setiap 5 menit
+# SIMPAN LOG POSTURE
+#
+# Tidak Ergonomis :
+# langsung simpan
+#
+# Ergonomis :
+# simpan setiap 5 menit
 # =====================================================
 
 def insert_log(pitch, status):
 
     conn = None
     cursor = None
+
 
     try:
 
@@ -119,12 +129,14 @@ def insert_log(pitch, status):
 
 
 
+        # Tidak ergonomis langsung masuk log
         if status == "Tidak Ergonomis":
 
             save_log = True
 
 
 
+        # Ergonomis cek interval
         elif status == "Ergonomis":
 
 
@@ -150,6 +162,7 @@ def insert_log(pitch, status):
                 last_time = last_log["timestamp"]
 
 
+                # cek selisih 5 menit
                 if datetime.now() - last_time >= timedelta(minutes=5):
 
                     save_log = True
@@ -172,7 +185,11 @@ def insert_log(pitch, status):
                 (
                     %s,
                     %s,
-                    '+00:00', '+07:00'
+                    CONVERT_TZ(
+                        NOW(),
+                        '+00:00',
+                        '+07:00'
+                    )
                 )
 
             """, (
@@ -186,7 +203,7 @@ def insert_log(pitch, status):
 
         else:
 
-            print("ℹ️ LOG SKIPPED")
+            print("ℹ️ LOG SKIPPED (BELUM 5 MENIT)")
 
 
 
@@ -210,6 +227,7 @@ def insert_log(pitch, status):
 
 # =====================================================
 # FUNGSI UTAMA
+# DIPANGGIL FLASK
 # =====================================================
 
 def save_prediction(pitch, status):
@@ -219,12 +237,15 @@ def save_prediction(pitch, status):
 
     try:
 
+
+        # update realtime
         update_current(
             pitch,
             status
         )
 
 
+        # simpan history
         insert_log(
             pitch,
             status
