@@ -70,7 +70,7 @@ def update_current(pitch, status):
             UPDATE current_posture
             SET pitch=%s,
                 status=%s,
-                timestamp=NOW()
+                timestamp=CONVERT_TZ(NOW(), '+00:00', '+07:00')
             WHERE id=1
         """, (
             pitch,
@@ -172,7 +172,7 @@ def insert_log(pitch, status):
                 (
                     %s,
                     %s,
-                    NOW()
+                    '+00:00', '+07:00'
                 )
 
             """, (
