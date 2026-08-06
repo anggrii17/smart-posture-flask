@@ -6,7 +6,7 @@
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
-from database import save_prediction
+# from database import save_prediction
 
 
 # =====================================================
@@ -166,13 +166,12 @@ def predict():
 
 
         print("STATUS :", status)
-        
-        save_prediction(
-            pitch,
-            status
-        )
 
-        print("DATABASE OK")
+
+
+        # Database sementara dilewati
+        print("DATABASE DILEWATI")
+
 
 
         return jsonify({
