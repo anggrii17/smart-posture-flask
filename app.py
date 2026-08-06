@@ -6,26 +6,35 @@
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
-from database import save_prediction
+# from database import save_prediction
+
 
 # =====================================================
-# MEMBUAT APLIKASI FLASK
+# FLASK APP
 # =====================================================
 
 app = Flask(__name__)
 
 
 # =====================================================
-# LOAD MODEL RANDOM FOREST
+# LOAD RANDOM FOREST MODEL
 # =====================================================
 
 try:
+
     model = joblib.load("random_forest_model.pkl")
-    print("✅ Model Random Forest berhasil dimuat.")
+
+    print("================================")
+    print("MODEL RANDOM FOREST BERHASIL DIMUAT")
+    print("FEATURE MODEL :", model.feature_names_in_)
+    print("================================")
+
 
 except Exception as e:
-    print("❌ Gagal memuat model :", e)
+
+    print("GAGAL LOAD MODEL :", e)
     model = None
+
 
 
 # =====================================================
@@ -41,6 +50,7 @@ def home():
     })
 
 
+
 # =====================================================
 # TEST PREDIKSI
 # =====================================================
@@ -51,6 +61,7 @@ def test():
     try:
 
         pitch = float(request.args.get("pitch"))
+
 
         input_data = pd.DataFrame({
             "pitch": [pitch]
@@ -79,7 +90,7 @@ def test():
 
     except Exception as e:
 
-        print("ERROR TEST =", e)
+        print("ERROR TEST :", e)
 
         return jsonify({
 
@@ -87,6 +98,7 @@ def test():
             "error": str(e)
 
         }),500
+
 
 
 
@@ -103,7 +115,6 @@ def predict():
         print("REQUEST MASUK")
 
 
-        # Ambil JSON ESP32
         data = request.get_json()
 
 
@@ -115,13 +126,12 @@ def predict():
             return jsonify({
 
                 "success": False,
-                "error": "JSON kosong"
+                "error": "JSON tidak ditemukan"
 
             }),400
 
 
 
-        # Ambil pitch
         pitch = float(data["pitch"])
 
 
@@ -129,24 +139,22 @@ def predict():
 
 
 
-        # Bentuk input ML
         input_data = pd.DataFrame({
 
-            "pitch":[pitch]
+            "pitch": [pitch]
 
         })
 
 
+        print("SEBELUM RANDOM FOREST")
 
-        # Prediksi Random Forest
+
         pred = model.predict(input_data)[0]
 
 
-        print("PREDIKSI :", pred)
+        print("HASIL RF :", pred)
 
 
-
-        # Label
 
         status = (
 
@@ -161,17 +169,8 @@ def predict():
 
 
 
-        # Simpan database
-
-        #save_prediction(
-
-         #   pitch,
-          #  status
-
-        #)
+        # Database sementara dilewati
         print("DATABASE DILEWATI")
-
-        print("DATABASE OK")
 
 
 
@@ -203,15 +202,14 @@ def predict():
 
 
 
+
 # =====================================================
-# RUN SERVER
+# RUN
 # =====================================================
 
 if __name__ == "__main__":
 
     app.run(
-
         host="0.0.0.0",
         port=5000
-
     )
