@@ -14,6 +14,7 @@ from database import save_prediction
 
 app = Flask(__name__)
 
+
 # =====================================================
 # LOAD MODEL RANDOM FOREST
 # =====================================================
@@ -21,26 +22,27 @@ app = Flask(__name__)
 try:
     model = joblib.load("random_forest_model.pkl")
     print("✅ Model Random Forest berhasil dimuat.")
+
 except Exception as e:
-    print("Gagal memuat model :", e)
+    print("❌ Gagal memuat model :", e)
+    model = None
+
 
 # =====================================================
-# HALAMAN HOME
+# HOME
 # =====================================================
 
 @app.route("/")
 def home():
+
     return jsonify({
         "message": "Smart Posture Monitoring API",
         "status": "Running"
     })
 
+
 # =====================================================
 # TEST PREDIKSI
-# Digunakan untuk pengujian melalui browser
-#
-# Contoh:
-# http://127.0.0.1:5000/test?pitch=12.5
 # =====================================================
 
 @app.route("/test", methods=["GET"])
@@ -48,36 +50,48 @@ def test():
 
     try:
 
-        # Ambil nilai pitch dari URL
         pitch = float(request.args.get("pitch"))
 
-        # Bentuk data sesuai saat training
         input_data = pd.DataFrame({
             "pitch": [pitch]
         })
 
-        # Prediksi menggunakan Random Forest
+
         pred = model.predict(input_data)[0]
 
-        # Konversi hasil prediksi menjadi label
-        status = "Ergonomis" if pred == 0 else "Tidak Ergonomis"
+
+        status = (
+            "Ergonomis"
+            if pred == 0
+            else "Tidak Ergonomis"
+        )
+
 
         return jsonify({
+
             "success": True,
             "pitch": pitch,
             "prediction": int(pred),
             "status": status
+
         })
+
 
     except Exception as e:
+
+        print("ERROR TEST =", e)
+
         return jsonify({
+
             "success": False,
             "error": str(e)
-        })
+
+        }),500
+
+
 
 # =====================================================
-# ENDPOINT PREDIKSI
-# Endpoint ini akan dipanggil oleh ESP32
+# PREDICT DARI ESP32
 # =====================================================
 
 @app.route("/predict", methods=["POST"])
@@ -85,52 +99,119 @@ def predict():
 
     try:
 
-        # Ambil data JSON dari ESP32
+        print("==============================")
+        print("REQUEST MASUK")
+
+
+        # Ambil JSON ESP32
         data = request.get_json()
 
-        if data is None:
-            return jsonify({
-                "success": False,
-                "error": "Body JSON tidak ditemukan."
-            }), 400
 
-        # Ambil nilai pitch
+        print("DATA :", data)
+
+
+        if data is None:
+
+            return jsonify({
+
+                "success": False,
+                "error": "JSON kosong"
+
+            }),400
+
+
+
+        # Ambil pitch
         pitch = float(data["pitch"])
 
-        # Bentuk DataFrame
+
+        print("PITCH :", pitch)
+
+
+
+        # Bentuk input ML
         input_data = pd.DataFrame({
-            "pitch": [pitch]
+
+            "pitch":[pitch]
+
         })
 
-        # Prediksi menggunakan Random Forest
+
+
+        # Prediksi Random Forest
         pred = model.predict(input_data)[0]
 
-        # Konversi hasil prediksi
-        status = "Ergonomis" if pred == 0 else "Tidak Ergonomis"
 
-        # ==========================================
-        # SIMPAN KE DATABASE
-        # ==========================================
+        print("PREDIKSI :", pred)
 
-        save_prediction(pitch, status)
 
-        # Kirim hasil ke ESP32
+
+        # Label
+
+        status = (
+
+            "Ergonomis"
+            if pred == 0
+            else "Tidak Ergonomis"
+
+        )
+
+
+        print("STATUS :", status)
+
+
+
+        # Simpan database
+
+        save_prediction(
+
+            pitch,
+            status
+
+        )
+
+
+        print("DATABASE OK")
+
+
+
         return jsonify({
+
             "success": True,
             "pitch": pitch,
             "prediction": int(pred),
             "status": status
+
         })
 
+
+
     except Exception as e:
+
+
+        print("==============================")
+        print("ERROR PREDICT :", e)
+        print("==============================")
+
+
         return jsonify({
+
             "success": False,
             "error": str(e)
-        }), 500
+
+        }),500
+
+
 
 # =====================================================
-# MENJALANKAN SERVER
+# RUN SERVER
 # =====================================================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+
+    app.run(
+
+        host="0.0.0.0",
+        port=5000
+
+    )
