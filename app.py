@@ -4,7 +4,7 @@
 # =====================================================
 
 from flask import Flask, request, jsonify
-from datetime import timezone
+from datetime import datetime, timezone
 import joblib
 import pandas as pd
 import pymysql
@@ -12,14 +12,17 @@ import pymysql
 from database import save_prediction
 from config import *
 
-
 # =====================================================
 # FLASK APP
 # =====================================================
 
 app = Flask(__name__)
 
+# =====================================================
+# STATUS ESP32
+# =====================================================
 
+last_esp_seen = None
 
 # =====================================================
 # CONNECTION DATABASE
@@ -37,8 +40,6 @@ def get_connection():
         cursorclass=pymysql.cursors.DictCursor
     )
 
-
-
 # =====================================================
 # LOAD RANDOM FOREST MODEL
 # =====================================================
@@ -52,16 +53,10 @@ try:
     print("FEATURE MODEL :", model.feature_names_in_)
     print("================================")
 
-
 except Exception as e:
 
     print("GAGAL LOAD MODEL :", e)
-
     model = None
-
-
-
-
 
 # =====================================================
 # HOME
@@ -76,11 +71,6 @@ def home():
         "status": "Running"
 
     })
-
-
-
-
-
 # =====================================================
 # TEST RANDOM FOREST
 # =====================================================
@@ -92,23 +82,17 @@ def test():
 
         pitch = float(request.args.get("pitch"))
 
-
         input_data = pd.DataFrame({
-
-            "pitch":[pitch]
-
+            "pitch": [pitch]
         })
 
-
         pred = model.predict(input_data)[0]
-
 
         status = (
             "Ergonomis"
             if pred == 0
             else "Tidak Ergonomis"
         )
-
 
         return jsonify({
 
@@ -119,8 +103,6 @@ def test():
 
         })
 
-
-
     except Exception as e:
 
         return jsonify({
@@ -128,10 +110,7 @@ def test():
             "success": False,
             "error": str(e)
 
-        }),500
-
-
-
+        }), 500
 
 
 # =====================================================
@@ -141,79 +120,56 @@ def test():
 @app.route("/predict", methods=["POST"])
 def predict():
 
-    try:
+    global last_esp_seen
 
+    try:
 
         print("==============================")
         print("REQUEST MASUK")
 
-
-
         data = request.get_json()
-
-
-
-        print("DATA :", data)
-
-
 
         if data is None:
 
             return jsonify({
 
-                "success":False,
-                "error":"JSON tidak ditemukan"
+                "success": False,
+                "error": "JSON tidak ditemukan"
 
-            }),400
+            }), 400
 
+        # Update status ESP32
+        last_esp_seen = datetime.now(timezone.utc)
 
-
+        print("DATA :", data)
 
         pitch = float(data["pitch"])
 
-
-
         print("PITCH :", pitch)
-
-
 
         input_data = pd.DataFrame({
 
-            "pitch":[pitch]
+            "pitch": [pitch]
 
         })
 
-
-
         print("SEBELUM RANDOM FOREST")
-
-
 
         pred = model.predict(input_data)[0]
 
-
-
         print("HASIL RF :", pred)
 
-
-
         status = (
-
             "Ergonomis"
             if pred == 0
             else "Tidak Ergonomis"
-
         )
-
-
 
         print("STATUS :", status)
 
-
-
-
-
+        # ==============================
         # SIMPAN DATABASE
+        # ==============================
 
         try:
 
@@ -222,50 +178,34 @@ def predict():
                 status
             )
 
-
             print("DATABASE BERHASIL")
-
-
 
         except Exception as e:
 
             print("DATABASE GAGAL :", e)
 
-
-
-
         return jsonify({
 
-            "success":True,
-            "pitch":pitch,
-            "prediction":int(pred),
-            "status":status
+            "success": True,
+            "pitch": pitch,
+            "prediction": int(pred),
+            "status": status
 
         })
 
-
-
-
     except Exception as e:
-
 
         print("==============================")
         print("ERROR PREDICT :", e)
         print("==============================")
 
-
         return jsonify({
 
-            "success":False,
-            "error":str(e)
+            "success": False,
+            "error": str(e)
 
-        }),500
-
-
-
-
-
-# =====================================================
+        }), 500
+    # =====================================================
 # API UNTUK FLUTTER
 # CURRENT POSTURE
 # =====================================================
@@ -300,19 +240,20 @@ def current():
             data["timestamp_unix"] = int(dt.timestamp())
 
         return jsonify({
+
             "success": True,
             "data": data
+
         })
 
     except Exception as e:
 
         return jsonify({
+
             "success": False,
             "error": str(e)
+
         }), 500
-
-
-
 
 
 # =====================================================
@@ -325,11 +266,8 @@ def logs():
 
     try:
 
-
         conn = get_connection()
         cursor = conn.cursor()
-
-
 
         cursor.execute("""
             SELECT *
@@ -338,38 +276,60 @@ def logs():
             LIMIT 50
         """)
 
-
-
         data = cursor.fetchall()
-
-
 
         cursor.close()
         conn.close()
 
-
-
         return jsonify({
 
-            "success":True,
-            "data":data
+            "success": True,
+            "data": data
 
         })
 
-
-
     except Exception as e:
-
 
         return jsonify({
 
-            "success":False,
-            "error":str(e)
+            "success": False,
+            "error": str(e)
 
-        }),500
+        }), 500
 
 
+# =====================================================
+# STATUS ESP32
+# =====================================================
 
+@app.route("/esp_status", methods=["GET"])
+def esp_status():
+
+    global last_esp_seen
+
+    if last_esp_seen is None:
+
+        return jsonify({
+
+            "success": True,
+            "online": False,
+            "last_seen": None,
+            "seconds": None
+
+        })
+
+    diff = (
+        datetime.now(timezone.utc) - last_esp_seen
+    ).total_seconds()
+
+    return jsonify({
+
+        "success": True,
+        "online": diff <= 5,
+        "last_seen": last_esp_seen.isoformat(),
+        "seconds": diff
+
+    })
 
 
 # =====================================================
@@ -378,10 +338,10 @@ def logs():
 
 if __name__ == "__main__":
 
-
     app.run(
 
         host="0.0.0.0",
-        port=5000
+        port=5000,
+        debug=False
 
     )
